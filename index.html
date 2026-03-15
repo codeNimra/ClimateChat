@@ -2,497 +2,56 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ClimaChat-Climate Education AI</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body, #root { height: 100%; }
-    body {
-      background: linear-gradient(160deg, #0a1f0f 0%, #0d2b1a 40%, #0a1a10 100%);
-      font-family: Georgia, 'Times New Roman', serif;
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 0.3; transform: scale(0.8); }
-      50%       { opacity: 1;   transform: scale(1.1); }
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    input::placeholder { color: rgba(134,239,172,0.35); }
-    ::-webkit-scrollbar { width: 4px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(34,197,94,0.2); border-radius: 4px; }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ClimaChat – Climate Education AI</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>" />
 </head>
 <body>
-<div id="root"></div>
 
-<script type="text/babel">
-const { useState, useRef, useEffect } = React;
+  <div id="app">
+    <div class="bg-glow"></div>
 
-const SYSTEM_PROMPT = `You are ClimaChat, a friendly and knowledgeable climate science tutor designed specifically for students aged 13–20. Your job is to make climate science exciting, clear, and approachable.
-
-Guidelines:
-- Use simple, engaging language appropriate for teenagers
-- Use relatable analogies and real-world examples
-- Be encouraging and curious in tone — like a cool science teacher
-- Keep answers concise (3–5 sentences for simple questions, a bit longer for complex ones)
-- Use emojis sparingly but effectively to make responses lively
-- When relevant, offer a follow-up "Did you know?" fun fact
-- In MYTH BUSTER mode: clearly label the claim as TRUE, FALSE, or PARTLY TRUE, then explain why with evidence
-
-You care deeply about the planet and want students to feel empowered, not hopeless.`;
-
-const TOPIC_STARTERS = [
-  { emoji: "🌡️", label: "Global Warming",  question: "What actually causes global warming, and why does it matter?" },
-  { emoji: "🌊", label: "Rising Seas",      question: "Why are sea levels rising and which places are most at risk?" },
-  { emoji: "🌿", label: "Carbon Sinks",     question: "What are carbon sinks and why are forests so important?" },
-  { emoji: "⚡", label: "Clean Energy",     question: "How does solar energy work and can it power the whole world?" },
-  { emoji: "🐝", label: "Biodiversity",     question: "How does climate change affect animals and ecosystems?" },
-  { emoji: "🌾", label: "Food & Farming",   question: "How does climate change threaten our food supply?" },
-];
-
-const MYTH_EXAMPLES = [
-  "Climate change is natural and has nothing to do with humans.",
-  "It's too cold outside, so global warming isn't real.",
-  "CO2 is plant food, so more of it is actually good.",
-  "Scientists disagree about whether climate change is happening.",
-];
-
-function App() {
-  const [messages,   setMessages]   = useState([]);
-  const [input,      setInput]      = useState("");
-  const [mythInput,  setMythInput]  = useState("");
-  const [loading,    setLoading]    = useState(false);
-  const [mode,       setMode]       = useState("chat"); // "chat" | "myth"
-  const [apiKey,     setApiKey]     = useState("");
-  const [showKeyBox, setShowKeyBox] = useState(false);
-  const bottomRef = useRef(null);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
-
-  async function sendMessage(userText) {
-    if (!userText.trim() || loading) return;
-
-    if (!apiKey.trim()) {
-      setShowKeyBox(true);
-      return;
-    }
-
-    const finalText = mode === "myth"
-      ? `[MYTH BUSTER MODE] Please fact-check this climate claim: "${userText}"`
-      : userText;
-
-    const newMessages = [...messages, { role: "user", display: userText, content: finalText }];
-    setMessages(newMessages);
-    setInput("");
-    setMythInput("");
-    setLoading(true);
-
-    try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          system: SYSTEM_PROMPT,
-          messages: newMessages.map(m => ({ role: m.role, content: m.content })),
-        }),
-      });
-      const data = await res.json();
-      const reply = data.content?.map(b => b.text || "").join("") || "Sorry, I couldn't get a response.";
-      setMessages(prev => [...prev, { role: "assistant", content: reply, display: reply }]);
-    } catch (e) {
-      setMessages(prev => [...prev, {
-        role: "assistant",
-        content: "Oops! Something went wrong. Please check your API key and try again 🌍",
-        display: "Oops! Something went wrong. Please check your API key and try again 🌍",
-      }]);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const isEmpty = messages.length === 0;
-  const currentInput = mode === "myth" ? mythInput : input;
-  const setCurrentInput = mode === "myth" ? setMythInput : setInput;
-
-  /* ── styles ── */
-  const S = {
-    wrap: {
-      minHeight: "100vh", display: "flex", flexDirection: "column",
-      position: "relative", overflow: "hidden",
-      background: "linear-gradient(160deg,#0a1f0f 0%,#0d2b1a 40%,#0a1a10 100%)",
-    },
-    bgGlow: {
-      position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0,
-      background: `radial-gradient(ellipse 80% 50% at 20% 20%,rgba(34,197,94,.06) 0%,transparent 60%),
-                   radial-gradient(ellipse 60% 40% at 80% 80%,rgba(16,185,129,.05) 0%,transparent 60%)`,
-    },
-    header: {
-      position: "relative", zIndex: 10, padding: "18px 24px",
-      borderBottom: "1px solid rgba(34,197,94,.15)",
-      display: "flex", alignItems: "center", justifyContent: "space-between",
-      backdropFilter: "blur(10px)", background: "rgba(10,31,15,.65)",
-    },
-    logo: {
-      width: 42, height: 42,
-      background: "linear-gradient(135deg,#16a34a,#059669)",
-      borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center",
-      fontSize: 22, boxShadow: "0 0 20px rgba(34,197,94,.3)",
-    },
-    logoTitle: {
-      fontSize: 22, fontWeight: 700, color: "#f0fdf4", letterSpacing: "-.5px",
-      fontFamily: "'Palatino Linotype',Palatino,serif",
-    },
-    logoSub: {
-      fontSize: 11, color: "#4ade80", letterSpacing: "2px",
-      textTransform: "uppercase", fontFamily: "sans-serif",
-    },
-    modeBar: {
-      display: "flex", gap: 4,
-      background: "rgba(255,255,255,.05)",
-      borderRadius: 10, padding: 4,
-      border: "1px solid rgba(34,197,94,.2)",
-    },
-    modeBtn: (active) => ({
-      padding: "7px 14px", borderRadius: 7, border: "none", cursor: "pointer",
-      fontFamily: "sans-serif", fontSize: 13, fontWeight: 600,
-      transition: "all .2s",
-      background: active ? "linear-gradient(135deg,#16a34a,#059669)" : "transparent",
-      color: active ? "#fff" : "#86efac",
-      boxShadow: active ? "0 2px 8px rgba(22,163,74,.4)" : "none",
-    }),
-    center: {
-      flex: 1, display: "flex", flexDirection: "column",
-      position: "relative", zIndex: 10,
-      maxWidth: 760, width: "100%", margin: "0 auto", padding: "0 16px",
-    },
-    heroEmoji: { fontSize: 48, marginBottom: 12 },
-    heroTitle: {
-      fontSize: 28, color: "#f0fdf4", margin: "0 0 8px",
-      fontFamily: "'Palatino Linotype',Palatino,serif", fontWeight: 700,
-    },
-    heroSub: { color: "#86efac", fontSize: 15, margin: 0, fontFamily: "sans-serif", opacity: .8 },
-    sectionLabel: {
-      fontSize: 11, color: "#4ade80", letterSpacing: "2px",
-      textTransform: "uppercase", fontFamily: "sans-serif",
-      marginBottom: 12, textAlign: "center",
-    },
-    topicGrid: {
-      display: "grid",
-      gridTemplateColumns: "repeat(auto-fill,minmax(210px,1fr))",
-      gap: 10,
-    },
-    topicCard: {
-      background: "rgba(255,255,255,.04)",
-      border: "1px solid rgba(34,197,94,.18)",
-      borderRadius: 12, padding: "14px 16px",
-      cursor: "pointer", textAlign: "left",
-      transition: "all .2s", color: "#d1fae5",
-    },
-    mythCard: {
-      background: "rgba(255,255,255,.04)",
-      border: "1px solid rgba(251,191,36,.2)",
-      borderRadius: 10, padding: "12px 16px",
-      cursor: "pointer", textAlign: "left",
-      color: "#fef3c7", fontFamily: "sans-serif",
-      fontSize: 14, transition: "all .2s",
-      display: "flex", alignItems: "center", gap: 10,
-    },
-    messagesArea: {
-      flex: 1, overflowY: "auto", padding: "24px 0",
-      display: "flex", flexDirection: "column", gap: 20,
-    },
-    bubble: (role) => ({
-      maxWidth: "78%",
-      background: role === "user"
-        ? "linear-gradient(135deg,#166534,#14532d)"
-        : "rgba(255,255,255,.06)",
-      border: role === "user"
-        ? "1px solid rgba(34,197,94,.3)"
-        : "1px solid rgba(255,255,255,.08)",
-      borderRadius: role === "user" ? "18px 18px 4px 18px" : "4px 18px 18px 18px",
-      padding: "12px 16px",
-      color: role === "user" ? "#dcfce7" : "#e2f5e9",
-      fontSize: 15, lineHeight: 1.65,
-      fontFamily: "sans-serif",
-      boxShadow: role === "user"
-        ? "0 2px 12px rgba(22,163,74,.15)"
-        : "0 2px 8px rgba(0,0,0,.2)",
-      whiteSpace: "pre-wrap",
-      animation: "fadeIn .25s ease",
-    }),
-    avatar: {
-      width: 32, height: 32, borderRadius: 10, flexShrink: 0, marginTop: 2,
-      background: "linear-gradient(135deg,#16a34a,#059669)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      fontSize: 16, boxShadow: "0 0 12px rgba(34,197,94,.25)",
-    },
-    inputBar: {
-      position: "sticky", bottom: 0, zIndex: 20,
-      borderTop: "1px solid rgba(34,197,94,.12)",
-      background: "rgba(10,31,15,.88)",
-      backdropFilter: "blur(16px)",
-      padding: "16px",
-    },
-    inputInner: { maxWidth: 760, margin: "0 auto" },
-    textInput: (myth) => ({
-      flex: 1,
-      background: "rgba(255,255,255,.06)",
-      border: `1px solid ${myth ? "rgba(251,191,36,.3)" : "rgba(34,197,94,.25)"}`,
-      borderRadius: 12, padding: "13px 18px",
-      color: myth ? "#fef3c7" : "#d1fae5",
-      fontSize: 14, fontFamily: "sans-serif", outline: "none",
-      width: "100%",
-    }),
-    sendBtn: (myth, disabled) => ({
-      background: disabled
-        ? "rgba(34,197,94,.3)"
-        : myth
-          ? "linear-gradient(135deg,#d97706,#b45309)"
-          : "linear-gradient(135deg,#16a34a,#059669)",
-      border: "none", borderRadius: 12, padding: "0 20px",
-      color: "#fff", fontWeight: 700, fontSize: myth ? 14 : 18,
-      cursor: disabled ? "not-allowed" : "pointer",
-      fontFamily: "sans-serif",
-      boxShadow: myth
-        ? "0 2px 10px rgba(217,119,6,.3)"
-        : "0 2px 10px rgba(22,163,74,.35)",
-      whiteSpace: "nowrap",
-    }),
-    footer: {
-      textAlign: "center", marginTop: 10, fontSize: 11,
-      color: "rgba(134,239,172,.4)", fontFamily: "sans-serif", letterSpacing: "1px",
-    },
-    keyOverlay: {
-      position: "fixed", inset: 0, zIndex: 100,
-      background: "rgba(0,0,0,.7)", backdropFilter: "blur(6px)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-    },
-    keyBox: {
-      background: "#0d2b1a", border: "1px solid rgba(34,197,94,.3)",
-      borderRadius: 16, padding: "28px 32px", maxWidth: 440, width: "90%",
-      boxShadow: "0 8px 40px rgba(0,0,0,.5)",
-    },
-  };
-
-  return (
-    <div style={S.wrap}>
-      <div style={S.bgGlow} />
-
-      {/* API Key modal */}
-      {showKeyBox && (
-        <div style={S.keyOverlay}>
-          <div style={S.keyBox}>
-            <div style={{ fontSize: 28, marginBottom: 10 }}>🔑</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: "#f0fdf4", marginBottom: 8, fontFamily: "sans-serif" }}>
-              Enter your Anthropic API Key
-            </div>
-            <div style={{ fontSize: 13, color: "#86efac", fontFamily: "sans-serif", marginBottom: 18, lineHeight: 1.6 }}>
-              Your key is only used locally in your browser and never stored anywhere.
-              Get one free at <span style={{ color: "#4ade80" }}>console.anthropic.com</span>
-            </div>
-            <input
-              type="password"
-              value={apiKey}
-              onChange={e => setApiKey(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && setShowKeyBox(false)}
-              placeholder="sk-ant-..."
-              style={{
-                width: "100%", padding: "12px 16px", borderRadius: 10,
-                background: "rgba(255,255,255,.06)",
-                border: "1px solid rgba(34,197,94,.3)",
-                color: "#d1fae5", fontSize: 14, fontFamily: "monospace",
-                outline: "none", marginBottom: 14,
-              }}
-              autoFocus
-            />
-            <button
-              onClick={() => setShowKeyBox(false)}
-              style={{
-                width: "100%", padding: "12px",
-                background: "linear-gradient(135deg,#16a34a,#059669)",
-                border: "none", borderRadius: 10, color: "#fff",
-                fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: "sans-serif",
-              }}
-            >
-              Let's Chat 🌍
-            </button>
-          </div>
+    <!-- ── Header ── -->
+    <header>
+      <div class="logo">
+        <div class="logo-icon">🌍</div>
+        <div>
+          <div class="logo-title">ClimaChat</div>
+          <div class="logo-sub">Climate Education AI</div>
         </div>
-      )}
-
-      {/* Header */}
-      <header style={S.header}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={S.logo}>🌍</div>
-          <div>
-            <div style={S.logoTitle}>ClimaChat</div>
-            <div style={S.logoSub}>Climate Education AI</div>
-          </div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={S.modeBar}>
-            {[["chat","💬 Ask"],["myth","🔍 Myth Buster"]].map(([m,label]) => (
-              <button key={m} onClick={() => setMode(m)} style={S.modeBtn(mode === m)}>{label}</button>
-            ))}
-          </div>
-          <button
-            onClick={() => setShowKeyBox(true)}
-            title="Set API Key"
-            style={{
-              background: apiKey ? "rgba(34,197,94,.15)" : "rgba(255,100,100,.15)",
-              border: `1px solid ${apiKey ? "rgba(34,197,94,.3)" : "rgba(255,100,100,.3)"}`,
-              borderRadius: 8, padding: "7px 12px", cursor: "pointer",
-              fontFamily: "sans-serif", fontSize: 12, fontWeight: 600,
-              color: apiKey ? "#4ade80" : "#fca5a5",
-            }}
-          >{apiKey ? "🔑 Key set" : "🔑 Set key"}</button>
-        </div>
-      </header>
-
-      {/* Body */}
-      <div style={S.center}>
-
-        {/* Empty state */}
-        {isEmpty && (
-          <div style={{ padding: "32px 0 24px" }}>
-            <div style={{ textAlign: "center", marginBottom: 32 }}>
-              <div style={S.heroEmoji}>{mode === "myth" ? "🔍" : "🌱"}</div>
-              <h1 style={S.heroTitle}>
-                {mode === "myth" ? "Bust a Climate Myth" : "What's on your mind?"}
-              </h1>
-              <p style={S.heroSub}>
-                {mode === "myth"
-                  ? "Paste a climate claim you've heard — I'll tell you if it's TRUE, FALSE, or somewhere in between."
-                  : "Ask me anything about climate science. No question is too big or too small."}
-              </p>
-            </div>
-
-            {mode === "chat" && <>
-              <div style={S.sectionLabel}>Start with a topic</div>
-              <div style={S.topicGrid}>
-                {TOPIC_STARTERS.map(t => (
-                  <button key={t.label} style={S.topicCard}
-                    onClick={() => sendMessage(t.question)}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.background = "rgba(34,197,94,.1)";
-                      e.currentTarget.style.borderColor = "rgba(34,197,94,.4)";
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.background = "rgba(255,255,255,.04)";
-                      e.currentTarget.style.borderColor = "rgba(34,197,94,.18)";
-                    }}
-                  >
-                    <div style={{ fontSize: 22, marginBottom: 6 }}>{t.emoji}</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "#f0fdf4", fontFamily: "sans-serif", marginBottom: 4 }}>{t.label}</div>
-                    <div style={{ fontSize: 12, color: "#86efac", fontFamily: "sans-serif", lineHeight: 1.4, opacity: .8 }}>{t.question}</div>
-                  </button>
-                ))}
-              </div>
-            </>}
-
-            {mode === "myth" && <>
-              <div style={S.sectionLabel}>Try one of these</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {MYTH_EXAMPLES.map(myth => (
-                  <button key={myth} style={S.mythCard}
-                    onClick={() => sendMessage(myth)}
-                    onMouseEnter={e => e.currentTarget.style.background = "rgba(251,191,36,.08)"}
-                    onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,.04)"}
-                  >
-                    <span style={{ fontSize: 16 }}>💬</span> "{myth}"
-                  </button>
-                ))}
-              </div>
-            </>}
-          </div>
-        )}
-
-        {/* Messages */}
-        {!isEmpty && (
-          <div style={S.messagesArea}>
-            {messages.map((msg, i) => (
-              <div key={i} style={{
-                display: "flex",
-                justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
-                alignItems: "flex-start", gap: 10,
-              }}>
-                {msg.role === "assistant" && <div style={S.avatar}>🌍</div>}
-                <div style={S.bubble(msg.role)}>{msg.display}</div>
-              </div>
-            ))}
-
-            {loading && (
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                <div style={S.avatar}>🌍</div>
-                <div style={{
-                  background: "rgba(255,255,255,.06)",
-                  border: "1px solid rgba(255,255,255,.08)",
-                  borderRadius: "4px 18px 18px 18px",
-                  padding: "14px 18px",
-                  display: "flex", gap: 5, alignItems: "center",
-                }}>
-                  {[0,1,2].map(i => (
-                    <div key={i} style={{
-                      width: 7, height: 7, borderRadius: "50%",
-                      background: "#4ade80",
-                      animation: `pulse 1.2s ease-in-out infinite`,
-                      animationDelay: `${i * 0.2}s`,
-                    }}/>
-                  ))}
-                </div>
-              </div>
-            )}
-            <div ref={bottomRef} />
-          </div>
-        )}
       </div>
 
-      {/* Input bar */}
-      <div style={S.inputBar}>
-        <div style={S.inputInner}>
-          <div style={{ display: "flex", gap: 10 }}>
-            <input
-              value={currentInput}
-              onChange={e => setCurrentInput(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && sendMessage(currentInput)}
-              placeholder={
-                mode === "myth"
-                  ? 'Paste a climate claim, e.g. "Electric cars are worse for the environment"'
-                  : "Ask anything about climate science..."
-              }
-              style={S.textInput(mode === "myth")}
-            />
-            <button
-              onClick={() => sendMessage(currentInput)}
-              disabled={loading || !currentInput.trim()}
-              style={S.sendBtn(mode === "myth", loading || !currentInput.trim())}
-            >
-              {mode === "myth" ? "🔍 Check" : "↑"}
-            </button>
-          </div>
-          <div style={S.footer}>CLIMACHAT • POWERED BY AI • BUILT FOR STUDENTS</div>
+      <div class="header-right">
+        <div class="mode-bar">
+          <button class="mode-btn active" id="btn-chat">💬 Ask</button>
+          <button class="mode-btn"        id="btn-myth">🔍 Myth Buster</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- ── Body (empty state or messages injected here) ── -->
+    <div class="main-scroll" id="body-area"></div>
+
+    <!-- ── Input bar ── -->
+    <div class="input-bar">
+      <div class="input-inner">
+        <div class="input-row">
+          <input
+            class="chat-input"
+            id="chat-input"
+            type="text"
+            placeholder="Ask anything about climate science..."
+            autocomplete="off"
+          />
+          <button class="send-btn" id="send-btn" disabled>↑</button>
+        </div>
+        <div class="input-footer">
+          CLIMACHAT &nbsp;•&nbsp; POWERED BY AI &nbsp;•&nbsp; BUILT FOR STUDENTS
         </div>
       </div>
     </div>
-  );
-}
+  </div>
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
-</script>
+  <script type="module" src="/src/main.js"></script>
 </body>
 </html>

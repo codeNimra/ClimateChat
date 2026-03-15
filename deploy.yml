@@ -1,0 +1,51 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # Writes config.js fresh from the GitHub Secret — key never in repo
+      - name: Inject API key into config.js
+        run: |
+          cat > src/config.js << CONFIGEOF
+          export const CONFIG = {
+            API_KEY:    "${{ secrets.FEATHERLESS_API_KEY }}",
+            MODEL:      "Qwen/Qwen2.5-7B-Instruct",
+            MAX_TOKENS: 1000,
+            API_URL:    "https://api.featherless.ai/v1/chat/completions",
+          };
+          CONFIGEOF
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/
+
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
